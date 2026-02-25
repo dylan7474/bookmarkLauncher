@@ -1,13 +1,10 @@
 # bookmarkLauncher
 
-bookmarkLauncher is a browser-based launchpad for your favorite websites. It includes a modern dashboard (`index.html`) plus a compatibility-friendly legacy view (`legacy.html`) for older devices, with local configuration controls (edit, import, export) so your setup is easy to maintain.
+bookmarkLauncher is a single-page, browser-based launchpad for your favorite websites. It gives you a clean dashboard with primary and secondary bookmark grids, optional background customization, and local configuration controls (edit, import, export) so your setup is easy to maintain.
 
 ## What the application is
 
 - A lightweight start-page style web app (no build tooling required).
-- Two entry points:
-  - **`index.html`** for modern browsers.
-  - **`legacy.html`** for older Safari/iPad-era browsers that need minimal JavaScript and no CDN assets.
 - A configurable bookmark launcher with two sections:
   - **Primary Sites** for frequently used links.
   - **Secondary Sites** for everything else.
@@ -20,7 +17,7 @@ This project is static HTML/CSS/JS, so there is no compilation step.
 ### Option 1: Open directly
 
 1. Clone this repository.
-2. Open `index.html` in your browser (or `legacy.html` on older devices).
+2. Open `index.html` in your browser.
 
 ### Option 2: Serve locally (recommended)
 
