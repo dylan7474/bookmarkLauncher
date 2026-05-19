@@ -199,9 +199,9 @@
             </div>
             
             <div class="mb-6">
-                <label for="siteUrl" class="block text-sm font-medium text-slate-400 mb-1">URL</label>
-                <input type="url" id="siteUrl" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-500" placeholder="https://example.com">
-                <p class="text-xs text-slate-500 mt-2">The icon will be fetched automatically based on the URL.</p>
+                <label for="siteUrl" class="block text-sm font-medium text-slate-400 mb-1">URL or Local Path</label>
+                <input type="text" id="siteUrl" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-500" placeholder="https://example.com or C:\apps\app.html">
+                <p class="text-xs text-slate-500 mt-2">Supports normal websites, relative paths (./app.html), or local file locations (file:///...).</p>
             </div>
             
             <div class="mb-6 border-t border-slate-800 pt-4">
@@ -321,6 +321,35 @@
             localStorage.setItem('launchpad_config', JSON.stringify(state.config));
         }
 
+        // Helper to check if a URL represents a local file or path
+        function isLocalPath(url) {
+            if (!url) return false;
+            // Matches file:// protocol, relative pathways starting with dot or slash, or drive letters like C:\
+            return /^(file:\/\/|[\.\/]|[a-zA-Z]:)/i.test(url);
+        }
+
+        // Normalizes input to generate valid URL targets
+        function normalizeUrl(url) {
+            if (!url) return '';
+            url = url.trim();
+
+            // Already normalized protocols
+            if (/^(https?|file):\/\//i.test(url)) {
+                return url;
+            }
+            // Standard relative directories (e.g. ./app.html, /app.html)
+            if (/^(\.\/|\.\.\/|\/)/.test(url)) {
+                return url;
+            }
+            // Windows drive letters (e.g. C:\users)
+            if (/^[a-zA-Z]:[/\\]/i.test(url)) {
+                let formatted = url.replace(/\\/g, '/');
+                return 'file:///' + formatted;
+            }
+            // Treat everything else as standard domain names and default to HTTPS
+            return 'https://' + url;
+        }
+
         // Rendering Visuals
         function applyBackground() {
             if (state.config.backgroundImage) {
@@ -335,7 +364,7 @@
         }
 
         function getFaviconUrl(url) {
-            if (!url) return '';
+            if (!url || isLocalPath(url)) return '';
             try {
                 const domain = new URL(url).hostname;
                 return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
@@ -351,7 +380,7 @@
         function createButtonHTML(item, type, index) {
             const isPrimary = type === 'primary';
             const hasData = item.url && item.url.trim() !== "";
-            const iconUrl = item.icon || getFaviconUrl(item.url);
+            const iconUrl = getFaviconUrl(item.url);
             
             // Layout differences based on primary (large) vs secondary (small)
             const heightClass = isPrimary ? "h-32 sm:h-36" : "h-20 sm:h-24";
@@ -361,14 +390,37 @@
 
             let iconHtml = '';
             if (hasData) {
-                iconHtml = `
-                    <div class="${iconSize} rounded-xl bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner p-1 pointer-events-none">
-                        <img src="${iconUrl}" alt="${item.title}" class="w-full h-full object-contain drop-shadow-md rounded-lg" 
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                        <div class="w-full h-full flex items-center justify-center font-bold text-slate-300 hidden text-xl bg-slate-700">
-                            ${getInitials(item.title)}
-                        </div>
-                    </div>`;
+                const local = isLocalPath(item.url);
+                
+                if (item.icon) {
+                    // Custom uploaded icon
+                    iconHtml = `
+                        <div class="${iconSize} rounded-xl bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner p-1 pointer-events-none">
+                            <img src="${item.icon}" alt="${item.title}" class="w-full h-full object-contain drop-shadow-md rounded-lg" />
+                        </div>`;
+                } else if (local) {
+                    // Local file icon fallback (sleek file/document vector)
+                    iconHtml = `
+                        <div class="${iconSize} rounded-xl bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner p-1.5 pointer-events-none text-blue-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3/4 h-3/4">
+                                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+                                <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+                                <path d="M10 9H8"/>
+                                <path d="M16 13H8"/>
+                                <path d="M16 17H8"/>
+                            </svg>
+                        </div>`;
+                } else {
+                    // standard web page icon
+                    iconHtml = `
+                        <div class="${iconSize} rounded-xl bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner p-1 pointer-events-none">
+                            <img src="${iconUrl}" alt="${item.title}" class="w-full h-full object-contain drop-shadow-md rounded-lg" 
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                            <div class="w-full h-full flex items-center justify-center font-bold text-slate-300 hidden text-xl bg-slate-700">
+                                ${getInitials(item.title)}
+                            </div>
+                        </div>`;
+                }
             } else {
                 iconHtml = `
                     <div class="${iconSize} rounded-xl border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-600 transition-colors group-hover:border-slate-500 group-hover:text-slate-400 pointer-events-none">
@@ -505,9 +557,9 @@
                 openEditModal(type, index, item);
             } else {
                 if (item.url) {
-                    // Make sure URL has protocol
                     let finalUrl = item.url;
-                    if (!/^https?:\/\//i.test(finalUrl)) {
+                    // Safely ensure relative or file URLs launch without being forced to external HTTPS
+                    if (!/^(https?|file):\/\//i.test(finalUrl) && !/^(\.\/|\.\.\/|\/)/.test(finalUrl)) {
                         finalUrl = 'https://' + finalUrl;
                     }
                     window.open(finalUrl, '_blank');
@@ -547,8 +599,22 @@
 
         function updateIconPreview() {
             if (!iconPreview) return;
-            const url = document.getElementById('siteUrl').value;
-            const src = tempIconBase64 || getFaviconUrl(url) || '';
+            const url = document.getElementById('siteUrl').value.trim();
+            
+            let src = tempIconBase64;
+            if (!src) {
+                if (isLocalPath(url)) {
+                    // Preview a standard file SVG if it is local
+                    iconPreview.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-2/3 h-2/3 text-blue-400">
+                            <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+                            <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+                        </svg>`;
+                    return;
+                }
+                src = getFaviconUrl(url);
+            }
+
             if (src) {
                 iconPreview.innerHTML = `<img src="${src}" class="w-full h-full object-contain drop-shadow-sm rounded" />`;
             } else {
@@ -563,9 +629,7 @@
             const title = document.getElementById('siteName').value.trim();
             let url = document.getElementById('siteUrl').value.trim();
 
-            if (url && !/^https?:\/\//i.test(url)) {
-                url = 'https://' + url;
-            }
+            url = normalizeUrl(url);
 
             state.config[type][index] = { title, url, icon: tempIconBase64 };
             
